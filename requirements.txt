@@ -1,0 +1,6 @@
+uvicorn>=0.20.0,<1.0.0
+fastapi>=0.100.0,<1.0.0
+pydantic>=2.0.0,<3.0.0
+loguru>=0.5.3,<1.0.0
+pydantic-settings>=2.0.0,<3.0.0
+car-price-model==0.1.0

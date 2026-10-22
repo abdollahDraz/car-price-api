@@ -1,0 +1,9 @@
+
+-r test_requirements.txt
+
+# Code quality and type checking
+flake8>=7.0,<8.0
+isort>=5.13,<7.0
+black>=24.0,<27.0
+mypy>=1.10,<2.0
+pandas-stubs
