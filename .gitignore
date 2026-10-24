@@ -23,3 +23,6 @@ htmlcov/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Local package build artifacts
+package-test/
