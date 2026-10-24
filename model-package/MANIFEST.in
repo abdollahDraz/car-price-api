@@ -1,0 +1,21 @@
+include *.text 
+include *.md 
+
+
+include config/config.yml 
+
+recursive-include car_price_model * 
+recursive-include config *.py *.yml
+recursive-include processing *.py
+recursive-include trained_models *.pkl
+
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+
+exclude *.log 
+exclude *.cfg 
+
+
+
+
+

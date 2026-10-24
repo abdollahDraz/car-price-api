@@ -26,3 +26,11 @@ Thumbs.db
 
 # Local package build artifacts
 package-test/
+
+# Model package build artifacts
+model-package/dist/
+model-package/build/
+model-package/*.egg-info/
+
+# Model package test environment
+model-package/.venv-package-test/

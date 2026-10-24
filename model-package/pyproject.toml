@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+
+[project]
+name = "car-price-model"
+version = "0.1.0"
+description = "car Price Prediction Model Package"
+requires-python = ">= 3.10"
+readme = "README.md"
+dependencies = [
+   "joblib",
+    "numpy",
+    "pandas",
+    "scikit-learn==1.6.1",
+    "pydantic",
+    "PyYAML",
+]
+
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+minversion = "8.0"
+addopts = "-ra"
+filterwarnings = [
+    "default",
+]
+
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "car_price_model*",
+    "config*",
+    "processing*",
+]
+
+
+[tool.setuptools.package-data]
+car_price_model = ["trained_models/*.pkl"]
+
+
+
+
+[tool.black]
+target-version = ["py313"]
+line-length = 88
+
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+
+
