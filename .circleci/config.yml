@@ -68,6 +68,36 @@ jobs:
               echo "ERROR: PyPI returned HTTP $STATUS."
               exit 1
             fi
+  
+  test-api:
+    docker:
+      - image: cimg/python:3.13
+    working_directory: ~/project
+    steps:
+      - checkout
+
+      - run:
+          name: Prepare API test requirements
+          command: |
+            MODEL_VERSION=$(cat model-package/VERSION)
+
+            sed "s/^car-price-model==.*/car-price-model==${MODEL_VERSION}/" \
+              requirements.txt > ci-requirements.txt
+
+            sed 's/^-r requirements.txt$/-r ci-requirements.txt/' \
+              test_requirements.txt > ci-test-requirements.txt
+
+      - run:
+          name: Install tox
+          command: python -m pip install tox
+
+      - run:
+          name: Test API with selected model version
+          command: |
+            python -m tox run -e test_app \
+              -x "testenv:test_app.deps=-r ci-test-requirements.txt"
+
+
 
 
 workflows:
@@ -77,5 +107,10 @@ workflows:
           filters:
             branches:
               only: main
-
+      - test-api:
+          requires:
+            - build-model
+          filters:
+            branches:
+              only: main
       
