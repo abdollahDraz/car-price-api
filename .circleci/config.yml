@@ -1,0 +1,165 @@
+
+version: 2.1
+
+jobs:
+  build-model:
+    docker:
+      - image: cimg/python:3.13
+    working_directory: ~/project
+    steps:
+      - checkout
+
+      - run:
+          name: Verify model package version
+          command: |
+            VERSION=$(cat model-package/VERSION)
+            PROJECT_VERSION=$(python -c "import tomllib; print(tomllib.load(open('model-package/pyproject.toml', 'rb'))['project']['version'])")
+
+            echo "VERSION file: $VERSION"
+            echo "pyproject.toml: $PROJECT_VERSION"
+
+            if [ "$VERSION" != "$PROJECT_VERSION" ]; then
+              echo "ERROR: Model package versions do not match."
+              exit 1
+            fi
+
+      - run:
+          name: Install tox
+          command: python -m pip install tox
+
+      - run:
+          name: Test model package
+          command: python -m tox -c model-package/tox.ini
+
+      - run:
+          name: Install package build tools
+          command: python -m pip install build twine
+
+      - run:
+          name: Build model package
+          command: python -m build model-package
+
+      - store_artifacts:
+          path: model-package/dist
+          destination: model-package-dist
+
+      - run:
+          name: Publish model package to PyPI if version is new
+          command: |
+            VERSION=$(cat model-package/VERSION)
+            echo "Checking package version: $VERSION"
+
+            STATUS=$(curl -sS -o /dev/null -w "%{http_code}" \
+              "https://pypi.org/pypi/car-price-model/${VERSION}/json") || {
+                echo "ERROR: Could not connect to PyPI. Publishing stopped."
+                exit 1
+              }
+
+            if [ "$STATUS" = "200" ]; then
+              echo "Version $VERSION already exists on PyPI. Skipping upload."
+
+            elif [ "$STATUS" = "404" ]; then
+              echo "New version detected: $VERSION. Uploading..."
+
+              TWINE_USERNAME=__token__ \
+              TWINE_PASSWORD="$PYPI_API_TOKEN" \
+              python -m twine upload model-package/dist/*
+
+            else
+              echo "ERROR: PyPI returned HTTP $STATUS."
+              exit 1
+            fi
+
+  test-api:
+    docker:
+      - image: cimg/python:3.13
+    working_directory: ~/project
+    steps:
+      - checkout
+
+      - run:
+          name: Prepare API test requirements
+          command: |
+            MODEL_VERSION=$(cat model-package/VERSION)
+
+            sed "s/^car-price-model==.*/car-price-model==${MODEL_VERSION}/" \
+              requirements.txt > ci-requirements.txt
+
+            sed 's/^-r requirements.txt$/-r ci-requirements.txt/' \
+              test_requirements.txt > ci-test-requirements.txt
+
+      - run:
+          name: Install tox
+          command: python -m pip install tox
+
+      - run:
+          name: Test API with selected model version
+          command: |
+            python -m tox run -e test_app \
+              -x "testenv:test_app.deps=-r ci-test-requirements.txt"
+
+  build-docker:
+    docker:
+      - image: cimg/base:current
+    working_directory: ~/project
+    steps:
+      - checkout
+
+      - setup_remote_docker
+
+      - run:
+          name: Build Docker image
+          command: |
+            MODEL_VERSION=$(cat model-package/VERSION)
+            IMAGE="docker.io/${DOCKERHUB_USERNAME}/car-price-api:${CIRCLE_SHA1}"
+
+            docker build \
+              --platform linux/amd64 \
+              --build-arg MODEL_PACKAGE_VERSION="$MODEL_VERSION" \
+              -t "$IMAGE" .
+
+      - run:
+          name: Login to Docker Hub
+          command: |
+            echo "$DOCKERHUB_ACCESS_TOKEN" | docker login \
+              --username "$DOCKERHUB_USERNAME" \
+              --password-stdin
+
+      - run:
+          name: Push Docker image
+          command: |
+            IMAGE="docker.io/${DOCKERHUB_USERNAME}/car-price-api:${CIRCLE_SHA1}"
+            docker push "$IMAGE"
+
+      - run:
+          name: Deploy image to Render
+          command: |
+            IMAGE="docker.io/${DOCKERHUB_USERNAME}/car-price-api:${CIRCLE_SHA1}"
+
+            echo "Triggering Render deployment for $IMAGE"
+
+            curl --fail --silent --show-error --get \
+              --data-urlencode "imgURL=${IMAGE}" \
+              "$RENDER_DEPLOY_HOOK_URL"
+
+workflows:
+  build-model-workflow:
+    jobs:
+      - build-model:
+          filters:
+            branches:
+              only: main
+
+      - test-api:
+          requires:
+            - build-model
+          filters:
+            branches:
+              only: main
+
+      - build-docker:
+          requires:
+            - test-api
+          filters:
+            branches:
+              only: main

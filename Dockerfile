@@ -1,12 +1,17 @@
+
 FROM python:3.13
 
 WORKDIR /opt/car_price_api
 
 RUN useradd --create-home --shell /bin/bash appuser
 
-COPY requirements.txt  ./requirements.txt
+ARG MODEL_PACKAGE_VERSION=0.1.0
 
-RUN pip install  --no-cache-dir  -r requirements.txt
+COPY requirements.txt ./requirements.txt
+
+RUN sed -i '/^car-price-model==/d' requirements.txt \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir "car-price-model==${MODEL_PACKAGE_VERSION}"
 
 COPY . .
 
@@ -16,4 +21,4 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

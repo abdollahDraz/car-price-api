@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "car-price-model"
-version = "0.1.0"
+version = "0.1.1"
 description = "car Price Prediction Model Package"
 requires-python = ">= 3.10"
 readme = "README.md"
@@ -56,4 +56,22 @@ profile = "black"
 line_length = 88
 
 
+[tool.bumpversion]
+current_version = "0.1.1"
+allow_dirty = true
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
+serialize = ["{major}.{minor}.{patch}"]
+regex = false
+ignore_missing_version = false
+tag = false
+commit = false
+
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+
+[[tool.bumpversion.files]]
+filename = "VERSION"
+search = "{current_version}"
+replace = "{new_version}"
 
