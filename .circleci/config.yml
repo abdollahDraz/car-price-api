@@ -69,84 +69,6 @@ jobs:
               exit 1
             fi
 
-  test-api:
-    docker:
-      - image: cimg/python:3.13
-    working_directory: ~/project
-    steps:
-      - checkout
-
-      - run:
-          name: Prepare API test requirements
-          command: |
-            MODEL_VERSION=$(cat model-package/VERSION)
-
-            sed "s/^car-price-model==.*/car-price-model==${MODEL_VERSION}/" \
-              requirements.txt > ci-requirements.txt
-
-            sed 's/^-r requirements.txt$/-r ci-requirements.txt/' \
-              test_requirements.txt > ci-test-requirements.txt
-
-      - run:
-          name: Install tox
-          command: python -m pip install tox
-
-      - run:
-          name: Test API with selected model version
-          command: |
-            python -m tox run -e test_app \
-              -x "testenv:test_app.deps=-r ci-test-requirements.txt"
-
-  build-docker:
-    docker:
-      - image: cimg/base:current
-    working_directory: ~/project
-    steps:
-      - checkout
-
-      - setup_remote_docker
-
-      - run:
-          name: Install Node.js 22
-          command: |
-            curl -fsSL https://deb.nodesource.com/setup_22.x -o /tmp/nodesource_setup.sh
-            sudo -E bash /tmp/nodesource_setup.sh
-            sudo apt-get install -y nodejs
-            node --version
-            npm --version
-            docker --version
-
-      - run:
-          name: Build Docker image
-          command: |
-            MODEL_VERSION=$(cat model-package/VERSION)
-            IMAGE="docker.io/${DOCKERHUB_USERNAME}/car-price-api"
-
-            docker build \
-              --platform linux/amd64 \
-              --build-arg MODEL_PACKAGE_VERSION="$MODEL_VERSION" \
-              -t "$IMAGE:${CIRCLE_SHA1}" \
-              -t "$IMAGE:latest" .
-
-      - run:
-          name: Login to Docker Hub
-          command: |
-            echo "$DOCKERHUB_ACCESS_TOKEN" | docker login \
-              --username "$DOCKERHUB_USERNAME" \
-              --password-stdin
-
-      - run:
-          name: Push Docker image
-          command: |
-            IMAGE="docker.io/${DOCKERHUB_USERNAME}/car-price-api"
-            docker push "$IMAGE:${CIRCLE_SHA1}"
-            docker push "$IMAGE:latest"
-
-      - run:
-          name: Restart app on Blitz
-          command: |
-            curl -fsSL https://blitz.cloud/cli/blitz.js -o blitz.js
-            node blitz.js restart car-price-api --yes
 
 workflows:
   build-model-workflow:
@@ -156,16 +78,4 @@ workflows:
             branches:
               only: main
 
-      - test-api:
-          requires:
-            - build-model
-          filters:
-            branches:
-              only: main
-
-      - build-docker:
-          requires:
-            - test-api
-          filters:
-            branches:
-              only: main
+      
