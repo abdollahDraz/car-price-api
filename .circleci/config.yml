@@ -100,23 +100,35 @@ jobs:
 
   build-docker:
     docker:
-      - image: cimg/base:current
+      - image: cimg/base:current 
     working_directory: ~/project
     steps:
       - checkout
 
       - setup_remote_docker
+            
+      - run:
+          name: Install Node.js 22
+          command: |
+            curl -fsSL https://deb.nodesource.com/setup_22.x -o /tmp/nodesource_setup.sh
+            sudo -E bash /tmp/nodesource_setup.sh
+            sudo apt-get install -y nodejs
+            node --version
+            npm --version
+            docker --version
 
       - run:
           name: Build Docker image
           command: |
             MODEL_VERSION=$(cat model-package/VERSION)
-            IMAGE="docker.io/${DOCKERHUB_USERNAME}/car-price-api:${CIRCLE_SHA1}"
+            IMAGE="docker.io/${DOCKERHUB_USERNAME}/car-price-api"
 
             docker build \
               --platform linux/amd64 \
               --build-arg MODEL_PACKAGE_VERSION="$MODEL_VERSION" \
-              -t "$IMAGE" .
+              -t "$IMAGE:${CIRCLE_SHA1}" \
+              -t "$IMAGE:latest" . 
+            
 
       - run:
           name: Login to Docker Hub
@@ -128,19 +140,24 @@ jobs:
       - run:
           name: Push Docker image
           command: |
-            IMAGE="docker.io/${DOCKERHUB_USERNAME}/car-price-api:${CIRCLE_SHA1}"
-            docker push "$IMAGE"
+            IMAGE="docker.io/${DOCKERHUB_USERNAME}/car-price-api"
+            docker push "$IMAGE:${CIRCLE_SHA1}"
+            docker push "$IMAGE:latest"
+        
 
       - run:
-          name: Deploy image to Render
+          name: Check Node.js
           command: |
-            IMAGE="docker.io/${DOCKERHUB_USERNAME}/car-price-api:${CIRCLE_SHA1}"
+                Node --version 
+      
 
-            echo "Triggering Render deployment for $IMAGE"
+      - run:
+          name: Restart app on Blitz 
+          command: |
+                curl -fsSL https://blitz.cloud/cli/blitz.js -o blitz.js
+                node blitz.js restart car-price-api --yes
 
-            curl --fail --silent --show-error --get \
-              --data-urlencode "imgURL=${IMAGE}" \
-              "$RENDER_DEPLOY_HOOK_URL"
+
 
 workflows:
   build-model-workflow:
