@@ -3,5 +3,6 @@
 # Testing requirements
 pytest>=9.0,<10.0
 requests>=2.28.0,<2.50.0
-httpx2>=2.15.0,<3.0.0
+httpx>=0.23.2,<0.50.0
+
 
